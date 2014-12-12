@@ -23,6 +23,7 @@ namespace pat {
             virtual void produce(edm::Event&, const edm::EventSetup&);
         private:
             edm::EDGetTokenT<std::vector<reco::Vertex> > src_;
+            edm::EDGetTokenT<std::vector<reco::Track> > tracks_; //jgran
             edm::EDGetTokenT<edm::Association<pat::PackedCandidateCollection> > map_;
             edm::EDGetTokenT<edm::Association<pat::PackedCandidateCollection> > map2_;
     };
@@ -30,6 +31,7 @@ namespace pat {
 
 pat::PATSecondaryVertexSlimmer::PATSecondaryVertexSlimmer(const edm::ParameterSet& iConfig) :
     src_(consumes<std::vector<reco::Vertex> >(iConfig.getParameter<edm::InputTag>("src"))),
+    tracks_(consumes<std::vector<reco::Track> >(iConfig.getParameter<edm::InputTag>("generalTracks"))), //jgran
     map_(consumes<edm::Association<pat::PackedCandidateCollection> >(iConfig.getParameter<edm::InputTag>("packedPFCandidates"))),
     map2_(consumes<edm::Association<pat::PackedCandidateCollection> >(iConfig.getParameter<edm::InputTag>("lostTracksCandidates")))
 {
@@ -48,6 +50,8 @@ void pat::PATSecondaryVertexSlimmer::produce(edm::Event& iEvent, const edm::Even
     edm::Handle<edm::Association<pat::PackedCandidateCollection> > pf2pc2;
     iEvent.getByToken(map2_,pf2pc2);
 
+    edm::Handle<std::vector<reco::Track> > tracks; //jgran
+    iEvent.getByToken(tracks_, tracks); //jgran
 
     outPtr->reserve(vertices->size());
     for (unsigned int i = 0, n = vertices->size(); i < n; ++i) { 
@@ -56,12 +60,17 @@ void pat::PATSecondaryVertexSlimmer::produce(edm::Event& iEvent, const edm::Even
 
 	    for(reco::Vertex::trackRef_iterator  it=v.tracks_begin(); it != v.tracks_end(); it++) {
 		    if(v.trackWeight(*it)>0.5) {
-			    if((*pf2pc)[*it].isNonnull() && (*pf2pc)[*it]->numberOfHits() > 0) {
-				    outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc)[*it]) ));
+          reco::TrackRef myRef(tracks, (*it).key()); //jgran
+			    //if((*pf2pc)[*it].isNonnull() && (*pf2pc)[*it]->numberOfHits() > 0) { //jgran
+			    if((*pf2pc)[myRef].isNonnull() && (*pf2pc)[myRef]->numberOfHits() > 0) { //jgran
+				    //outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc)[*it]) )); //jgran
+				    outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc)[myRef]) )); //jgran
 			    }
 			    else {
-				    if((*pf2pc2)[*it].isNonnull()) {
-					    outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc2)[*it]) ));
+				    //if((*pf2pc2)[*it].isNonnull()) { //jgran
+				    if((*pf2pc2)[myRef].isNonnull()) {
+					    //outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc2)[*it]) )); //jgran
+					    outPtr->back().addDaughter(reco::CandidatePtr(edm::refToPtr((*pf2pc2)[myRef]) )); //jgran
 				    }	
 				    else { std::cout << "HELPME" << std::endl;}	
 			    }
